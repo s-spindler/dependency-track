@@ -21,7 +21,7 @@ jobs:
   build-java:
     runs-on: ubuntu-latest
     outputs:
-      slsahash: ${{ steps.build.outputs.slsahash }}
+      slsahash: ${{ steps.checksums.outputs.slsahash }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # tag=v3.2.0
