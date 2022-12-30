@@ -20,6 +20,8 @@ on:
 jobs:
   build-java:
     runs-on: ubuntu-latest
+    outputs:
+      slsahash: ${{ steps.build.outputs.slsahash }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3.2.0
@@ -49,12 +51,14 @@ jobs:
           mvn cyclonedx:makeBom -Dservices.bom.merge.skip=false org.codehaus.mojo:exec-maven-plugin:exec@merge-services-bom
 
       - name: Create Checksums
+        id: checksums
         run: |-
           pushd target
           echo "# SHA1" >> checksums.txt
           sha1sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
           echo "# SHA256" >> checksums.txt
-          sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
+          echo -n "slsahash=" >> $GITHUB_OUTPUT
+          sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar | tee -a checksums.txt | base64 -w0 >> $GITHUB_OUTPUT
           echo "# SHA512" >> checksums.txt
           sha512sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
           popd
@@ -67,6 +71,18 @@ jobs:
             target/*.jar
             target/bom.json
             target/checksums.txt
+
+  provenance:
+    needs:
+      - build-java
+    permissions:
+      actions: read # To read the workflow path.
+      id-token: write # To sign the provenance.
+      # contents: write # To add assets to a release.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+    with:
+      base64-subjects: "${{ needs.build-java.outputs.slsahash }}"
+      # upload-assets: true # Optional: Upload to a new release
 
   build-container:
     runs-on: ubuntu-latest
