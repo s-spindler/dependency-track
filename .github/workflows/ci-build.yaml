@@ -25,15 +25,3 @@ jobs:
     secrets:
       registry-0-usr: ${{ secrets.HUB_USERNAME }}
       registry-0-psw: ${{ secrets.HUB_ACCESSS_TOKEN }}
-
-  provenance:
-    needs:
-      - call-build
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
-    with:
-      base64-subjects: "${{ needs.call-build.outputs.slsahash }}"
-      # upload-assets: true # Optional: Upload to a new release
