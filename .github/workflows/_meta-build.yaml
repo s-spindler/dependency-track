@@ -57,10 +57,8 @@ jobs:
           echo "# SHA1" >> checksums.txt
           sha1sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
           echo "# SHA256" >> checksums.txt
-          sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
-
-          echo "slsahash=$(sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar | base64 -w0)" >> "$GITHUB_OUTPUT"
-
+          echo -n "slsahash=" >> $GITHUB_OUTPUT
+          sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar | tee -a checksums.txt | base64 -w0 >> $GITHUB_OUTPUT
           echo "# SHA512" >> checksums.txt
           sha512sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
           popd
