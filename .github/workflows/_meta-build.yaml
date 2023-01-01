@@ -10,7 +10,7 @@ on:
         type: boolean
         required: false
         default: false
-        description: "publish and scan the container image once its build"
+        description: "publish and scan the container image once its built"
     secrets:
       registry-0-usr:
         required: true
@@ -20,9 +20,11 @@ on:
 jobs:
   build-java:
     runs-on: ubuntu-latest
+    outputs:
+      slsahash: ${{ steps.checksums.outputs.slsahash }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3.2.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # tag=v3.2.0
 
       - name: Set up JDK
         uses: actions/setup-java@v3.9.0
@@ -48,6 +50,19 @@ jobs:
           mvn clean -P clean-exclude-wars
           mvn cyclonedx:makeBom -Dservices.bom.merge.skip=false org.codehaus.mojo:exec-maven-plugin:exec@merge-services-bom
 
+      - name: Create Checksums
+        id: checksums
+        run: |-
+          pushd target
+          echo "# SHA1" >> checksums.txt
+          sha1sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
+          echo "# SHA256" >> checksums.txt
+          echo -n "slsahash=" >> $GITHUB_OUTPUT
+          sha256sum dependency-track-apiserver.jar dependency-track-bundled.jar | tee -a checksums.txt | base64 -w0 >> $GITHUB_OUTPUT
+          echo "# SHA512" >> checksums.txt
+          sha512sum dependency-track-apiserver.jar dependency-track-bundled.jar >> checksums.txt
+          popd
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3.1.1
         with:
@@ -55,6 +70,20 @@ jobs:
           path: |-
             target/*.jar
             target/bom.json
+            target/checksums.txt
+
+  provenance:
+    if: github.event_name != 'pull_request'
+    needs:
+      - build-java
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+    with:
+      base64-subjects: "${{ needs.build-java.outputs.slsahash }}"
+      upload-assets: true
 
   build-container:
     runs-on: ubuntu-latest
@@ -70,7 +99,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3.2.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # tag=v3.2.0
 
       - name: Download Artifacts
         uses: actions/download-artifact@v3.0.1
